@@ -61,11 +61,11 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation("org.apache.poi:poi:5.2.3") // Or latest version
-    implementation("androidx.compose.foundation:foundation:1.5.0")
+    implementation("androidx.compose.foundation:foundation:1.5.1")
     implementation("org.apache.poi:poi-ooxml:5.2.3")
     implementation("com.google.android.material:material:1.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
-    implementation("androidx.compose.foundation:foundation-pager")
+    implementation("androidx.compose.foundation:foundation-pager:1.5.1")
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.appcompat) // Or latest version
