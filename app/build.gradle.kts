@@ -65,7 +65,7 @@ dependencies {
     implementation("org.apache.poi:poi-ooxml:5.2.3")
     implementation("com.google.android.material:material:1.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
-    implementation("com.google.accompanist:accompanist-pager:0.28.0")
+    implementation(libs.androidx.compose.foundation.pager)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.appcompat) // Or latest version

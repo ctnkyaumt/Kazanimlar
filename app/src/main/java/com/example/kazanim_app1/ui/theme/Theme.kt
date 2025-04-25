@@ -12,14 +12,16 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+private val DarkBlue = Color(0xFF03055B)
+
 private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF6200EE),
+    primary = DarkBlue,
     secondary = Color(0xFF03DAC5),
     tertiary = Color(0xFF3700B3)
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFBB86FC),
+    primary = DarkBlue,
     secondary = Color(0xFF03DAC5),
     tertiary = Color(0xFF3700B3)
 )

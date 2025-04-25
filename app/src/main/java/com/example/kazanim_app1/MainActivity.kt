@@ -10,6 +10,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -22,23 +24,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.kazanim_app1.ui.theme.ExcelViewerTheme
-import com.google.accompanist.pager.ExperimentalPagerApi
-import com.google.accompanist.pager.HorizontalPager
-import com.google.accompanist.pager.rememberPagerState
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
 import java.util.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-
-/** Data models **/
-data class Entry(val head1: String?, val head2: String?, val text: String?)
-data class Section(val name: String, val entries: List<Entry>)
-data class SubMenu(var name: String, var sections: List<Section> = emptyList())
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,7 +43,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPagerApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun JsonViewerApp() {
     // A mutable list of sub-menus
@@ -185,7 +177,7 @@ fun AddSubMenuDialog(onAdd: (String) -> Unit, onDismiss: () -> Unit) {
     )
 }
 
-@OptIn(ExperimentalPagerApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SubMenuDetailScreen(subMenu: SubMenu, onBack: () -> Unit) {
     // Local state to control which section is selected.
@@ -224,7 +216,7 @@ fun SubMenuDetailScreen(subMenu: SubMenu, onBack: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalPagerApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SectionDetailScreen(section: Section, onBack: () -> Unit) {
     // Use isCurrentDateInRange to determine the initial page for the entries
@@ -232,14 +224,16 @@ fun SectionDetailScreen(section: Section, onBack: () -> Unit) {
         isCurrentDateInRange(it.head1.orEmpty())
     }.takeIf { it != -1 } ?: 0
 
-    val pagerState = rememberPagerState(initialPage = initialPage)
+    val pagerState = rememberPagerState(initialPage = initialPage) { section.entries.size }
 
     // Optionally, re-calculate the target page if the section changes
-    LaunchedEffect(section) {
+    LaunchedEffect(section, pagerState.currentPage) {
         val targetPage = section.entries.indexOfFirst {
             isCurrentDateInRange(it.head1.orEmpty())
         }.takeIf { it != -1 } ?: 0
-        pagerState.scrollToPage(targetPage)
+        if (pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -252,7 +246,6 @@ fun SectionDetailScreen(section: Section, onBack: () -> Unit) {
             }
         }
         HorizontalPager(
-            count = section.entries.size,
             state = pagerState,
             modifier = Modifier.weight(1f)
         ) { page ->
@@ -386,31 +379,34 @@ suspend fun processJsonFile(
 }
 
 suspend fun loadSubMenus(context: Context): List<SubMenu>? {
-    return try {
-        val file = File(context.filesDir, "submenus.json")
-        if (!file.exists()) return null
-        withContext(Dispatchers.IO) {
-            FileReader(file).use { reader ->
+    val file = File(context.filesDir, "submenus.json")
+    if (!file.exists()) return null
+    return withContext(Dispatchers.IO) {
+        try {
+            FileReader(file).use {
                 val type = object : TypeToken<List<SubMenu>>() {}.type
-                Gson().fromJson<List<SubMenu>>(reader, type)
+                Gson().fromJson(it, type)
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
     }
 }
 
 suspend fun saveSubMenus(context: Context, subMenus: List<SubMenu>) {
-    try {
-        val file = File(context.filesDir, "submenus.json")
-        withContext(Dispatchers.IO) {
-            FileWriter(file).use { writer ->
-                Gson().toJson(subMenus, writer)
+    val file = File(context.filesDir, "submenus.json")
+    withContext(Dispatchers.IO) {
+        try {
+            FileWriter(file).use {
+                Gson().toJson(subMenus, it)
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-    } catch (e: Exception) {
-        e.printStackTrace()
     }
 }
 
+data class Entry(val head1: String?, val head2: String?, val text: String?)
+data class Section(val name: String, val entries: List<Entry>)
+data class SubMenu(var name: String, var sections: List<Section> = emptyList())
