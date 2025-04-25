@@ -230,16 +230,6 @@ fun SectionDetailScreen(section: Section, onBack: () -> Unit) {
 
     val pagerState = rememberPagerState(initialPage = initialPage) { section.entries.size }
 
-    // Optionally, re-calculate the target page if the section changes
-    LaunchedEffect(section, pagerState.currentPage) {
-        val targetPage = section.entries.indexOfFirst {
-            isCurrentDateInRange(it.head1.orEmpty())
-        }.takeIf { it != -1 } ?: 0
-        if (pagerState.currentPage != targetPage) {
-            pagerState.animateScrollToPage(targetPage)
-        }
-    }
-
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),

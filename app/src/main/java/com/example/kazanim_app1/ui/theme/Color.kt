@@ -10,5 +10,5 @@ val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-// Define a new dark blue color
-val DarkBlue = Color(0xFF073042) // Example dark blue, adjust as needed
+// Define a new light blue/aqua color instead of dark blue
+val DarkBlue = Color(0xFF00CED1) // Light blue/aqua color

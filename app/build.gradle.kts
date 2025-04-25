@@ -23,7 +23,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -60,9 +61,10 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("org.apache.poi:poi:5.2.3") // Or latest version
+    // Removed Apache POI libraries as they're very large and the app appears to be using JSON
+    // implementation("org.apache.poi:poi:5.2.3")
+    // implementation("org.apache.poi:poi-ooxml:5.2.3")
     implementation("androidx.compose.foundation:foundation")
-    implementation("org.apache.poi:poi-ooxml:5.2.3")
     implementation("com.google.android.material:material:1.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation(libs.kotlinx.serialization.json)
