@@ -25,12 +25,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.kazanim_app1.ui.theme.ExcelViewerTheme
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
 import java.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -369,7 +373,7 @@ suspend fun processJsonFile(
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
             val gson = Gson()
             val type = object : TypeToken<Map<String, List<Entry>>>() {}.type
-            val data: Map<String, List<Entry>> = gson.fromJson(inputStream.reader(), type)
+            val data = gson.fromJson<Map<String, List<Entry>>>(inputStream.reader(), type)
             val sections = data.map { Section(it.key, it.value) }
             onComplete(sections)
         }
@@ -385,7 +389,7 @@ suspend fun loadSubMenus(context: Context): List<SubMenu>? {
         try {
             FileReader(file).use {
                 val type = object : TypeToken<List<SubMenu>>() {}.type
-                Gson().fromJson(it, type)
+                Gson().fromJson<List<SubMenu>>(it, type)
             }
         } catch (e: Exception) {
             e.printStackTrace()
