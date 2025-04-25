@@ -61,7 +61,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation("org.apache.poi:poi:5.2.3") // Or latest version
-    implementation("androidx.compose.foundation:foundation:1.5.1")
+    implementation("androidx.compose.foundation:foundation")
     implementation("org.apache.poi:poi-ooxml:5.2.3")
     implementation("com.google.android.material:material:1.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
