@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -99,6 +100,13 @@ fun JsonViewerApp() {
         )
     }
 
+    // Handle system back: prevent app from closing on the root screen
+    if (selectedSubMenu == null) {
+        BackHandler {
+            // Consume back to avoid closing the app when at root
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -136,21 +144,50 @@ fun JsonViewerApp() {
                             .padding(16.dp)
                     ) {
                         items(subMenus) { submenu ->
-                            ElevatedButton(
-                                onClick = { selectedSubMenu = submenu },
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(submenu.name, fontSize = 18.sp)
+                                ElevatedButton(
+                                    onClick = { selectedSubMenu = submenu },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 8.dp)
+                                ) {
+                                    Text(submenu.name, fontSize = 18.sp)
+                                }
+                                TextButton(
+                                    onClick = {
+                                        subMenus.remove(submenu)
+                                        scope.launch { saveSubMenus(context, subMenus) }
+                                    }
+                                ) {
+                                    Text("Sil", color = Color.Red)
+                                }
                             }
                         }
                     }
                 } else {
                     // Sub-menu detail screen
-                    SubMenuDetailScreen(subMenu = selectedSubMenu!!) {
-                        selectedSubMenu = null // Go back to main screen
-                    }
+                    SubMenuDetailScreen(
+                        subMenu = selectedSubMenu!!,
+                        onBack = { selectedSubMenu = null },
+                        onDeleteSection = { section ->
+                            val index = subMenus.indexOf(selectedSubMenu)
+                            selectedSubMenu?.let { sm ->
+                                sm.sections = sm.sections.filterNot { it.name == section.name }
+                                if (index != -1) {
+                                    // Trigger recomposition by updating the item in the state list
+                                    subMenus[index] = sm
+                                }
+                                // Persist changes
+                                scope.launch { saveSubMenus(context, subMenus) }
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -183,9 +220,22 @@ fun AddSubMenuDialog(onAdd: (String) -> Unit, onDismiss: () -> Unit) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SubMenuDetailScreen(subMenu: SubMenu, onBack: () -> Unit) {
+fun SubMenuDetailScreen(
+    subMenu: SubMenu,
+    onBack: () -> Unit,
+    onDeleteSection: (Section) -> Unit
+) {
     // Local state to control which section is selected.
     var selectedSection by remember { mutableStateOf<Section?>(null) }
+
+    // Handle back: go up one level instead of exiting
+    BackHandler {
+        if (selectedSection != null) {
+            selectedSection = null
+        } else {
+            onBack()
+        }
+    }
 
     if (selectedSection == null) {
         // Show list of section buttons.
@@ -201,13 +251,24 @@ fun SubMenuDetailScreen(subMenu: SubMenu, onBack: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             LazyColumn(modifier = Modifier.fillMaxWidth()) {
                 items(subMenu.sections) { section ->
-                    ElevatedButton(
-                        onClick = { selectedSection = section },
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp)
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(section.name, fontSize = 18.sp)
+                        ElevatedButton(
+                            onClick = { selectedSection = section },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                        ) {
+                            Text(section.name, fontSize = 18.sp)
+                        }
+                        TextButton(onClick = { onDeleteSection(section) }) {
+                            Text("Sil", color = Color.Red)
+                        }
                     }
                 }
             }
@@ -270,7 +331,7 @@ fun SectionDetailScreen(section: Section, onBack: () -> Unit) {
                     Text(
                         text = formatText(currentEntry.text.orEmpty()),
                         fontSize = 16.sp,
-                        textAlign = TextAlign.Justify,
+                        textAlign = TextAlign.Start,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
