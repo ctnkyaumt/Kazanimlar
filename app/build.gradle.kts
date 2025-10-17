@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
-    kotlin("plugin.serialization") version "1.9.0"  // Add this line
 }
 
 android {
@@ -65,11 +64,7 @@ dependencies {
     // implementation("org.apache.poi:poi:5.2.3")
     // implementation("org.apache.poi:poi-ooxml:5.2.3")
     implementation("androidx.compose.foundation:foundation")
-    implementation("com.google.android.material:material:1.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.constraintlayout)
-    implementation(libs.androidx.appcompat) // Or latest version
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

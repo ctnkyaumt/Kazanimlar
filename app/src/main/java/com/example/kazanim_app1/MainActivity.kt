@@ -76,14 +76,7 @@ fun JsonViewerApp() {
                 val fileName = getFileNameFromUri(context, uri)
                 val dersName = extractDersNameFromFileName(fileName)
                 processJsonFile(context, uri) { loadedSections ->
-                    // Check if JSON has only one section
-                    if (loadedSections.size == 1) {
-                        // Don't create sub-menu, add section directly to a new sub-menu
-                        subMenus.add(SubMenu(dersName, loadedSections))
-                    } else {
-                        // Create sub-menu with multiple sections
-                        subMenus.add(SubMenu(dersName, loadedSections))
-                    }
+                    subMenus.add(SubMenu(dersName, loadedSections))
                     isLoading = false
                     saveSubMenus(context, subMenus)
                 }
@@ -247,15 +240,23 @@ fun SubMenuDetailScreen(
         }
     } else {
         // If a section is selected, show its entries.
-        SectionDetailScreen(section = selectedSection!!) {
-            selectedSection = null // Go back to the section list.
-        }
+        SectionDetailScreen(
+            section = selectedSection!!, 
+            isSingleSection = subMenu.sections.size == 1,
+            onBack = {
+                if (subMenu.sections.size == 1) {
+                    onBack() // Go directly to main menu
+                } else {
+                    selectedSection = null // Go back to the section list
+                }
+            }
+        )
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SectionDetailScreen(section: Section, onBack: () -> Unit) {
+fun SectionDetailScreen(section: Section, isSingleSection: Boolean = false, onBack: () -> Unit) {
     // Use isCurrentDateInRange to determine the initial page for the entries
     val initialPage = section.entries.indexOfFirst {
         isCurrentDateInRange(it.head1.orEmpty())
@@ -269,7 +270,7 @@ fun SectionDetailScreen(section: Section, onBack: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             TextButton(onClick = onBack) {
-                Text("Geri")
+                Text(if (isSingleSection) "Ana Menü" else "Geri")
             }
         }
         HorizontalPager(
@@ -483,7 +484,6 @@ fun extractDersNameFromFileName(fileName: String): String {
         "inglizce" to "İngilizce",
         "gorgu" to "Görgü",
         "görgu" to "Görgü",
-        "gorgu" to "Görgü",
         "görgü" to "Görgü",
         "rehberlik" to "Rehberlik",
         "muzik" to "Müzik",
