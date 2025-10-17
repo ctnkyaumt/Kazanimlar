@@ -190,12 +190,20 @@ fun SubMenuDetailScreen(
     onDeleteSection: (Section) -> Unit
 ) {
     // Local state to control which section is selected.
-    var selectedSection by remember { mutableStateOf<Section?>(null) }
+    // If there's only one section, auto-select it
+    var selectedSection by remember { 
+        mutableStateOf<Section?>(if (subMenu.sections.size == 1) subMenu.sections.first() else null) 
+    }
 
     // Handle back: go up one level instead of exiting
     BackHandler {
         if (selectedSection != null) {
-            selectedSection = null
+            // If only one section exists, go back to main menu directly
+            if (subMenu.sections.size == 1) {
+                onBack()
+            } else {
+                selectedSection = null
+            }
         } else {
             onBack()
         }
