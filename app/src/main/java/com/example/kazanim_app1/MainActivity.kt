@@ -66,39 +66,31 @@ fun JsonViewerApp() {
         }
     }
 
-    // File picker launcher (only used in the submenu detail screen)
+    // File picker launcher for adding new sub-menu from JSON
     val filePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
             isLoading = true
             scope.launch {
+                val fileName = getFileNameFromUri(context, uri)
+                val dersName = extractDersNameFromFileName(fileName)
                 processJsonFile(context, uri) { loadedSections ->
-                    selectedSubMenu?.sections = loadedSections
+                    // Check if JSON has only one section
+                    if (loadedSections.size == 1) {
+                        // Don't create sub-menu, add section directly to a new sub-menu
+                        subMenus.add(SubMenu(dersName, loadedSections))
+                    } else {
+                        // Create sub-menu with multiple sections
+                        subMenus.add(SubMenu(dersName, loadedSections))
+                    }
                     isLoading = false
-                    // Save the updated sub-menus list with the new sections.
                     saveSubMenus(context, subMenus)
                 }
             }
         }
     }
 
-    // Dialog state for adding a new sub-menu
-    var showAddDialog by remember { mutableStateOf(false) }
-    if (showAddDialog) {
-        AddSubMenuDialog(
-            onAdd = { name ->
-                // Add the new sub-menu.
-                subMenus.add(SubMenu(name))
-                showAddDialog = false
-                // Save the updated list.
-                scope.launch {
-                    saveSubMenus(context, subMenus)
-                }
-            },
-            onDismiss = { showAddDialog = false }
-        )
-    }
 
     // Handle system back: prevent app from closing on the root screen
     if (selectedSubMenu == null) {
@@ -114,14 +106,9 @@ fun JsonViewerApp() {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.LightGray),
                 actions = {
                     if (selectedSubMenu == null) {
-                        // Main screen: show "Ders Ekle"
-                        TextButton(onClick = { showAddDialog = true }) {
-                            Text("Ders Ekle", color = Color.Black)
-                        }
-                    } else {
-                        // In submenu detail: show "JSON Yükle"
+                        // Main screen: show "Ders Ekle" which uploads JSON
                         TextButton(onClick = { filePickerLauncher.launch("application/json") }) {
-                            Text("JSON Yükle", color = Color.Black)
+                            Text("Ders Ekle", color = Color.Black)
                         }
                     }
                 }
@@ -194,29 +181,6 @@ fun JsonViewerApp() {
     }
 }
 
-@Composable
-fun AddSubMenuDialog(onAdd: (String) -> Unit, onDismiss: () -> Unit) {
-    var text by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Yeni Ders Ekle") },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text("Ders adı") }
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                if (text.isNotBlank()) { onAdd(text) }
-            }) { Text("OK") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -342,12 +306,7 @@ fun SectionDetailScreen(section: Section, onBack: () -> Unit) {
 
 fun isCurrentDateInRange(range: String): Boolean {
     val processedRange = range.substringAfter(':').trim()
-    val pattern = """(\d{1,2})(?:\s*([A-Za-z]+))?\s*-\s*(\d{1,2})\s*([A-Za-z]+)""".toRegex()
-    val match = pattern.find(processedRange) ?: return false
-    val (startDayStr, startMonthStr, endDayStr, endMonthStr) = match.destructured
-    val startDay = startDayStr.toIntOrNull() ?: return false
-    val endDay = endDayStr.toIntOrNull() ?: return false
-
+    
     val months = mapOf(
         "January" to Calendar.JANUARY,
         "February" to Calendar.FEBRUARY,
@@ -362,13 +321,43 @@ fun isCurrentDateInRange(range: String): Boolean {
         "November" to Calendar.NOVEMBER,
         "December" to Calendar.DECEMBER
     )
-    val startMonth = if (startMonthStr.isNotBlank()) {
-        months[startMonthStr]
+    
+    // Try pattern for "29-03 September-October" or "29-03September-October"
+    val pattern1 = """(\d{1,2})\s*-\s*(\d{1,2})\s*([A-Za-z]+)\s*-\s*([A-Za-z]+)""".toRegex()
+    val match1 = pattern1.find(processedRange)
+    
+    val startDay: Int
+    val endDay: Int
+    val startMonth: Int
+    val endMonth: Int
+    
+    if (match1 != null) {
+        // Format: "29-03 September-October" (day 29 of first month to day 03 of second month)
+        val groups = match1.groupValues
+        startDay = groups[1].toIntOrNull() ?: return false
+        endDay = groups[2].toIntOrNull() ?: return false
+        val firstMonthName = groups[3]
+        val secondMonthName = groups[4]
+        startMonth = months[firstMonthName] ?: return false
+        endMonth = months[secondMonthName] ?: return false
     } else {
-        months[endMonthStr]
-    } ?: return false
-
-    val endMonth = months[endMonthStr] ?: return false
+        // Try original pattern for "29 September - 03 October"
+        val pattern2 = """(\d{1,2})(?:\s*([A-Za-z]+))?\s*-\s*(\d{1,2})\s*([A-Za-z]+)""".toRegex()
+        val match2 = pattern2.find(processedRange) ?: return false
+        val groups = match2.groupValues
+        startDay = groups[1].toIntOrNull() ?: return false
+        endDay = groups[3].toIntOrNull() ?: return false
+        val startMonthStr = groups[2]
+        val endMonthStr = groups[4]
+        
+        startMonth = if (startMonthStr.isNotBlank()) {
+            months[startMonthStr]
+        } else {
+            months[endMonthStr]
+        } ?: return false
+        
+        endMonth = months[endMonthStr] ?: return false
+    }
 
     val now = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, 0)
@@ -460,4 +449,63 @@ suspend fun saveSubMenus(context: Context, subMenus: List<SubMenu>) {
             e.printStackTrace()
         }
     }
+}
+
+fun getFileNameFromUri(context: Context, uri: Uri): String {
+    var fileName = "unknown"
+    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+        if (nameIndex != -1 && cursor.moveToFirst()) {
+            fileName = cursor.getString(nameIndex)
+        }
+    }
+    return fileName
+}
+
+fun extractDersNameFromFileName(fileName: String): String {
+    // Remove file extension
+    val nameWithoutExt = fileName.substringBeforeLast('.')
+    
+    // Normalize Turkish characters for matching
+    val normalized = nameWithoutExt.lowercase()
+    
+    // Check for subject keywords (case-insensitive, Turkish character variants)
+    val subjects = mapOf(
+        "ingilizce" to "İngilizce",
+        "inglizce" to "İngilizce",
+        "gorgu" to "Görgü",
+        "görgu" to "Görgü",
+        "gorgu" to "Görgü",
+        "görgü" to "Görgü",
+        "rehberlik" to "Rehberlik",
+        "muzik" to "Müzik",
+        "müzik" to "Müzik",
+        "muzık" to "Müzik",
+        "müzık" to "Müzik"
+    )
+    
+    var dersName = ""
+    for ((key, value) in subjects) {
+        if (normalized.contains(key)) {
+            dersName = value
+            break
+        }
+    }
+    
+    // Check if "secmeli" or variants exist
+    val hasSecmeli = normalized.contains("secmeli") || 
+                     normalized.contains("seçmeli") || 
+                     normalized.contains("secmelı") || 
+                     normalized.contains("seçmelı")
+    
+    if (hasSecmeli && dersName.isNotEmpty()) {
+        dersName = "Seçmeli $dersName"
+    }
+    
+    // If no match found, use the original filename
+    if (dersName.isEmpty()) {
+        dersName = nameWithoutExt
+    }
+    
+    return dersName
 }
