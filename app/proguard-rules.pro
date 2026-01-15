@@ -1,21 +1,17 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Keep Gson and related classes
+-keep class com.google.gson.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep your data models to prevent R8 from obfuscating/removing them
+# This is crucial for Gson to map JSON fields to these classes
+-keep class com.example.kazanim_app1.Entry { *; }
+-keep class com.example.kazanim_app1.Section { *; }
+-keep class com.example.kazanim_app1.SubMenu { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Alternatively, keep all classes in the package if you add more models later
+-keep class com.example.kazanim_app1.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep Compose related classes that might be stripped in release
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
