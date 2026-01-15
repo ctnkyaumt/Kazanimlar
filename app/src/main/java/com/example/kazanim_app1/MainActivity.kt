@@ -70,16 +70,27 @@ fun JsonViewerApp() {
     val filePickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            isLoading = true
-            scope.launch {
+        if (uri == null) {
+            isLoading = false
+            return@rememberLauncherForActivityResult
+        }
+        isLoading = true
+        scope.launch {
+            try {
                 val fileName = getFileNameFromUri(context, uri)
                 val dersName = extractDersNameFromFileName(fileName)
                 processJsonFile(context, uri) { loadedSections ->
-                    subMenus.add(SubMenu(dersName, loadedSections))
-                    isLoading = false
-                    saveSubMenus(context, subMenus)
+                    withContext(Dispatchers.Main) {
+                        subMenus.add(SubMenu(dersName, loadedSections))
+                        isLoading = false
+                        saveSubMenus(context, subMenus)
+                    }
                 }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
+                e.printStackTrace()
             }
         }
     }
@@ -418,16 +429,20 @@ suspend fun processJsonFile(
     uri: Uri,
     onComplete: suspend (List<Section>) -> Unit
 ) {
-    try {
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            val gson = Gson()
-            val type = object : TypeToken<Map<String, List<Entry>>>() {}.type
-            val data = gson.fromJson<Map<String, List<Entry>>>(inputStream.reader(), type)
-            val sections = data.map { Section(it.key, it.value) }
-            onComplete(sections)
+    withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val gson = Gson()
+                val type = object : TypeToken<Map<String, List<Entry>>>() {}.type
+                val data = gson.fromJson<Map<String, List<Entry>>>(inputStream.reader(), type)
+                val sections = data.map { Section(it.key, it.value) }
+                onComplete(sections)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Ensure onComplete is not called or handle error state
+            throw e
         }
-    } catch (e: Exception) {
-        e.printStackTrace()
     }
 }
 
