@@ -457,8 +457,10 @@ fun formatText(text: String): String {
 
         if (standardKeywords.any { cleanHeader.equals(it, ignoreCase = true) }) {
             currentSkill = cleanHeader
-            if (result.isNotEmpty()) result.append("\n\n")
-            result.append("*** $cleanHeader ***\n")
+            if (result.isNotEmpty()) {
+                result.append("\n\n\n")
+            }
+            result.append("*** $cleanHeader ***\n\n")
             continue
         }
 
@@ -469,14 +471,20 @@ fun formatText(text: String): String {
             val skillName = skillMap[codeLetter] ?: codeLetter
             if (currentSkill != skillName) {
                 currentSkill = skillName
-                if (result.isNotEmpty()) result.append("\n\n")
+                if (result.isNotEmpty()) {
+                    result.append("\n\n\n")
+                }
                 result.append("*** $skillName ***\n\n")
             } else {
-                result.append("\n\n")
+                if (result.isNotEmpty() && !result.endsWith("\n\n")) {
+                    result.append("\n\n")
+                }
             }
             result.append(line)
         } else {
-            if (result.isNotEmpty()) result.append("\n")
+            if (result.isNotEmpty() && !result.endsWith("\n\n") && !result.endsWith("\n")) {
+                result.append("\n")
+            }
             result.append(line)
         }
     }
