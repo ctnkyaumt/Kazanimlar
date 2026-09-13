@@ -240,7 +240,7 @@ fun SubMenuDetailScreen(
                                 .weight(1f)
                                 .padding(end = 8.dp)
                         ) {
-                            Text(section.name, fontSize = 18.sp)
+                            Text(formatSectionName(section.name), fontSize = 18.sp)
                         }
                         TextButton(onClick = { onDeleteSection(section) }) {
                             Text("Sil", color = Color.Red)
@@ -412,16 +412,76 @@ fun isCurrentDateInRange(range: String): Boolean {
     return now.timeInMillis in startCalendar.timeInMillis..endCalendar.timeInMillis
 }
 
+fun formatSectionName(name: String): String {
+    return name.replace("""(?i)section\d*\s*=\s*""".toRegex(), "").trim()
+}
+
 fun formatText(text: String): String {
-    val keywords = setOf("Listening", "Spoken Interaction", "Reading", "Spoken Production", "Writing", "Speaking")
-    return text.lines().joinToString("\n") { line ->
-        val trimmedLine = line.replace("\\s+".toRegex(), " ").trim()
-        if (keywords.any { trimmedLine.startsWith(it) }) {
-            "\n**$trimmedLine**\n"
-        } else {
-            trimmedLine
+    if (text.isBlank()) return ""
+
+    val singleActivities = setOf("ORIENTATION", "REVISION", "SCHOOL-BASED PLANNING", "SOCIAL ACTIVITIES")
+    val trimmedText = text.trim()
+    if (singleActivities.any { trimmedText.equals(it, ignoreCase = true) }) {
+        return "*** ${trimmedText.uppercase()} ***"
+    }
+
+    val skillMap = mapOf(
+        "L" to "Listening",
+        "SI" to "Spoken Interaction",
+        "SP" to "Spoken Production",
+        "S" to "Speaking",
+        "R" to "Reading",
+        "W" to "Writing",
+        "P" to "Pronunciation",
+        "V" to "Vocabulary",
+        "G" to "Grammar"
+    )
+
+    val standardKeywords = setOf(
+        "Listening", "Spoken Interaction", "Spoken Production",
+        "Speaking", "Reading", "Writing", "Pronunciation", "Vocabulary", "Grammar"
+    )
+
+    val result = StringBuilder()
+    var currentSkill: String? = null
+
+    val lines = text.lines()
+    for (rawLine in lines) {
+        val line = rawLine.replace("\\s+".toRegex(), " ").trim()
+        if (line.isEmpty()) continue
+
+        // Check if line is already a skill header (e.g. "Listening" or "*** Listening ***" or "**Listening**")
+        val cleanHeader = line.removePrefix("***").removeSuffix("***")
+            .removePrefix("**").removeSuffix("**")
+            .trim()
+
+        if (standardKeywords.any { cleanHeader.equals(it, ignoreCase = true) }) {
+            currentSkill = cleanHeader
+            if (result.isNotEmpty()) result.append("\n\n")
+            result.append("*** $cleanHeader ***\n")
+            continue
         }
-    }.trim()
+
+        // Check if line is an outcome code like ENG.5.1.L1. or E7.1.SI1.
+        val outcomeMatch = """^(?:ENG\.?|E)\d+\.?\d*\.([A-Z]+)\d*\.?""".toRegex().find(line)
+        if (outcomeMatch != null) {
+            val codeLetter = outcomeMatch.groupValues[1]
+            val skillName = skillMap[codeLetter] ?: codeLetter
+            if (currentSkill != skillName) {
+                currentSkill = skillName
+                if (result.isNotEmpty()) result.append("\n\n")
+                result.append("*** $skillName ***\n\n")
+            } else {
+                result.append("\n\n")
+            }
+            result.append(line)
+        } else {
+            if (result.isNotEmpty()) result.append("\n")
+            result.append(line)
+        }
+    }
+
+    return result.toString().trim()
 }
 
 suspend fun processJsonFile(
@@ -435,7 +495,7 @@ suspend fun processJsonFile(
                 val gson = Gson()
                 val type = object : TypeToken<Map<String, List<Entry>>>() {}.type
                 val data = gson.fromJson<Map<String, List<Entry>>>(inputStream.reader(), type)
-                val sections = data.map { Section(it.key, it.value) }
+                val sections = data.map { Section(formatSectionName(it.key), it.value) }
                 onComplete(sections)
             }
         } catch (e: Exception) {
@@ -495,6 +555,7 @@ fun extractDersNameFromFileName(fileName: String): String {
     
     // Check for subject keywords (case-insensitive, Turkish character variants)
     val subjects = mapOf(
+        "english" to "English",
         "ingilizce" to "İngilizce",
         "inglizce" to "İngilizce",
         "gorgu" to "Görgü",
@@ -519,10 +580,11 @@ fun extractDersNameFromFileName(fileName: String): String {
     val hasSecmeli = normalized.contains("secmeli") || 
                      normalized.contains("seçmeli") || 
                      normalized.contains("secmelı") || 
-                     normalized.contains("seçmelı")
+                     normalized.contains("seçmelı") ||
+                     normalized.contains("elective")
     
     if (hasSecmeli && dersName.isNotEmpty()) {
-        dersName = "Seçmeli $dersName"
+        dersName = if (dersName == "English") "Elective English" else "Seçmeli $dersName"
     }
     
     // If no match found, use the original filename
