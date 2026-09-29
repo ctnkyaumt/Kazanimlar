@@ -325,7 +325,7 @@ fun SectionDetailScreen(section: Section, isSingleSection: Boolean = false, onBa
 }
 
 fun isCurrentDateInRange(range: String): Boolean {
-    val processedRange = range.substringAfter(':').trim()
+    val processedRange = range.substringAfter(':').replace('–', '-').replace('—', '-').trim()
     
     val months = mapOf(
         "January" to Calendar.JANUARY,
@@ -339,11 +339,29 @@ fun isCurrentDateInRange(range: String): Boolean {
         "September" to Calendar.SEPTEMBER,
         "October" to Calendar.OCTOBER,
         "November" to Calendar.NOVEMBER,
-        "December" to Calendar.DECEMBER
+        "December" to Calendar.DECEMBER,
+        "Ocak" to Calendar.JANUARY,
+        "Şubat" to Calendar.FEBRUARY,
+        "Subat" to Calendar.FEBRUARY,
+        "Mart" to Calendar.MARCH,
+        "Nisan" to Calendar.APRIL,
+        "Mayıs" to Calendar.MAY,
+        "Mayis" to Calendar.MAY,
+        "Haziran" to Calendar.JUNE,
+        "Temmuz" to Calendar.JULY,
+        "Ağustos" to Calendar.AUGUST,
+        "Agustos" to Calendar.AUGUST,
+        "Eylül" to Calendar.SEPTEMBER,
+        "Eylul" to Calendar.SEPTEMBER,
+        "Ekim" to Calendar.OCTOBER,
+        "Kasım" to Calendar.NOVEMBER,
+        "Kasim" to Calendar.NOVEMBER,
+        "Aralık" to Calendar.DECEMBER,
+        "Aralik" to Calendar.DECEMBER
     )
     
     // Try pattern for "29-03 September-October" or "29-03September-October"
-    val pattern1 = """(\d{1,2})\s*-\s*(\d{1,2})\s*([A-Za-z]+)\s*-\s*([A-Za-z]+)""".toRegex()
+    val pattern1 = """(\d{1,2})\s*-\s*(\d{1,2})\s*([A-Za-zÇŞĞÜÖİçşğüöı]+)\s*-\s*([A-Za-zÇŞĞÜÖİçşğüöı]+)""".toRegex()
     val match1 = pattern1.find(processedRange)
     
     val startDay: Int
@@ -358,11 +376,11 @@ fun isCurrentDateInRange(range: String): Boolean {
         endDay = groups[2].toIntOrNull() ?: return false
         val firstMonthName = groups[3]
         val secondMonthName = groups[4]
-        startMonth = months[firstMonthName] ?: return false
-        endMonth = months[secondMonthName] ?: return false
+        startMonth = months.entries.firstOrNull { it.key.equals(firstMonthName, ignoreCase = true) }?.value ?: return false
+        endMonth = months.entries.firstOrNull { it.key.equals(secondMonthName, ignoreCase = true) }?.value ?: return false
     } else {
         // Try original pattern for "29 September - 03 October"
-        val pattern2 = """(\d{1,2})(?:\s*([A-Za-z]+))?\s*-\s*(\d{1,2})\s*([A-Za-z]+)""".toRegex()
+        val pattern2 = """(\d{1,2})(?:\s*([A-Za-zÇŞĞÜÖİçşğüöı]+))?\s*-\s*(\d{1,2})\s*([A-Za-zÇŞĞÜÖİçşğüöı]+)""".toRegex()
         val match2 = pattern2.find(processedRange) ?: return false
         val groups = match2.groupValues
         startDay = groups[1].toIntOrNull() ?: return false
@@ -371,12 +389,12 @@ fun isCurrentDateInRange(range: String): Boolean {
         val endMonthStr = groups[4]
         
         startMonth = if (startMonthStr.isNotBlank()) {
-            months[startMonthStr]
+            months.entries.firstOrNull { it.key.equals(startMonthStr, ignoreCase = true) }?.value
         } else {
-            months[endMonthStr]
+            months.entries.firstOrNull { it.key.equals(endMonthStr, ignoreCase = true) }?.value
         } ?: return false
         
-        endMonth = months[endMonthStr] ?: return false
+        endMonth = months.entries.firstOrNull { it.key.equals(endMonthStr, ignoreCase = true) }?.value ?: return false
     }
 
     val now = Calendar.getInstance().apply {
@@ -419,10 +437,11 @@ fun formatSectionName(name: String): String {
 fun formatText(text: String): String {
     if (text.isBlank()) return ""
 
-    val singleActivities = setOf("ORIENTATION", "REVISION", "SCHOOL-BASED PLANNING", "SOCIAL ACTIVITIES")
+    val singleActivities = setOf("ORIENTATION", "REVISION", "SCHOOL-BASED PLANNING", "SOCIAL ACTIVITIES", "SOCIAL ACTIVITES")
     val trimmedText = text.trim()
     if (singleActivities.any { trimmedText.equals(it, ignoreCase = true) }) {
-        return "*** ${trimmedText.uppercase()} ***"
+        val activityName = if (trimmedText.equals("SOCIAL ACTIVITES", ignoreCase = true)) "SOCIAL ACTIVITIES" else trimmedText.uppercase()
+        return "*** $activityName ***"
     }
 
     val skillMap = mapOf(
@@ -447,7 +466,11 @@ fun formatText(text: String): String {
 
     val lines = text.lines()
     for (rawLine in lines) {
-        val line = rawLine.replace("\\s+".toRegex(), " ").trim()
+        var line = rawLine.replace("\\s+".toRegex(), " ").trim()
+        line = line.removePrefix("\"").removeSuffix("\"").trim()
+        if (line.contains("CENTRAL EXAMINATION SYSTEM", ignoreCase = true)) {
+            line = line.replace("CENTRAL EXAMINATION SYSTEM", "", ignoreCase = true).trim()
+        }
         if (line.isEmpty()) continue
 
         // Check if line is already a skill header (e.g. "Listening" or "*** Listening ***" or "**Listening**")
@@ -558,8 +581,8 @@ fun extractDersNameFromFileName(fileName: String): String {
     // Remove file extension
     val nameWithoutExt = fileName.substringBeforeLast('.')
     
-    // Normalize Turkish characters for matching
-    val normalized = nameWithoutExt.lowercase()
+    // Normalize Turkish characters for matching (use Locale.ROOT to avoid locale-dependent 'i'/'I' issues)
+    val normalized = nameWithoutExt.lowercase(Locale.ROOT)
     
     // Check for subject keywords (case-insensitive, Turkish character variants)
     val subjects = mapOf(
@@ -588,11 +611,17 @@ fun extractDersNameFromFileName(fileName: String): String {
     val hasSecmeli = normalized.contains("secmeli") || 
                      normalized.contains("seçmeli") || 
                      normalized.contains("secmelı") || 
-                     normalized.contains("seçmelı") ||
+                     normalized.contains("seçmelı") || 
+                     normalized.contains("secmel") || 
+                     normalized.contains("seçmel") || 
                      normalized.contains("elective")
     
-    if (hasSecmeli && dersName.isNotEmpty()) {
-        dersName = if (dersName == "English") "Elective English" else "Seçmeli $dersName"
+    if (hasSecmeli && (dersName.isNotEmpty() || normalized.contains("english") || normalized.contains("ingil"))) {
+        dersName = if (dersName == "English" || dersName == "İngilizce" || normalized.contains("english") || normalized.contains("ingil")) {
+            "Elective English"
+        } else {
+            "Seçmeli $dersName"
+        }
     }
     
     // If no match found, use the original filename

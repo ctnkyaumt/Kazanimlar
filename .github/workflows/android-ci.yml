@@ -1,12 +1,14 @@
 name: Android CI
 
 on:
-  workflow_dispatch:
+  push:
     branches: [ "master" ]
+    tags: [ "v*" ]
     paths-ignore:
       - '**.md'
       - '.gitignore'
       - '.idea/**'
+  workflow_dispatch:
   pull_request:
     branches: [ "master" ]
     paths-ignore:
@@ -60,13 +62,13 @@ jobs:
         path: ${{ steps.sign_app.outputs.signedReleaseFile }}
 
     - name: Publish GitHub Release
-      if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+      if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         TAG="${GITHUB_REF_NAME}"
-        if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$TAG" = "master" ]; then
-          TAG="v2"
+        if [ "$TAG" = "master" ]; then
+          TAG="v2.1"
         fi
         APK_FILE="${{ steps.sign_app.outputs.signedReleaseFile }}"
         echo "Publishing $APK_FILE to release $TAG"
